@@ -1,50 +1,51 @@
 # backend/app/orders.py
-# This file handles order creation logic
+# Handles order creation with Tide UK enforcement
 
-# Import Order model
 from app.models import Order
-
-# Import database session helper
 from app.db import get_session
-
-# Import fee calculation logic
 from app.fees import calculate_fees
+from app.payments_tide import process_tide_payment
 
-def create_order(buyer_id: int, seller_id: int, amount_cents: int, currency: str):
+def create_order(buyer_id: int, seller_id: int, amount_cents: int, currency: str, buyer_country: str):
     """
-    Creates a new order in the system.
+    Creates an order with strict payment enforcement.
 
-    IMPORTANT RULE:
-    - Orders are only created if payment is successful.
-    - In the FREE VERSION, payment success is simulated.
+    RULES:
+    - UK users MUST pay via Tide
+    - Orders cannot exist without confirmed payment
     """
 
-    # Calculate all platform fees
+    # If buyer is from UK, enforce Tide payment
+    if buyer_country == "UK":
+
+        # Attempt Tide payment
+        payment_result = process_tide_payment(buyer_id, amount_cents)
+
+        # If Tide payment fails, reject order
+        if not payment_result["success"]:
+            return {
+                "error": "Tide payment failed. Order not created."
+            }
+
+    # Calculate platform fees
     fees = calculate_fees(amount_cents)
 
-    # Open database session
+    # Save order only AFTER payment success
     with get_session() as db:
-
-        # Create a new Order record
         order = Order(
-            buyer_id=buyer_id,        # Who is buying
-            seller_id=seller_id,      # Who is selling
+            buyer_id=buyer_id,
+            seller_id=seller_id,
             amount_cents=amount_cents,
             currency=currency,
-            paid=True                 # Payment enforced here
+            paid=True
         )
 
-        # Save order to database
         db.add(order)
         db.commit()
-
-        # Refresh object to get generated ID
         db.refresh(order)
 
-    # Return order details and fee breakdown
     return {
         "order_id": order.id,
-        "amount_cents": amount_cents,
-        "currency": currency,
+        "paid_via": "Tide UK" if buyer_country == "UK" else "Internal",
         "fees": fees
     }
