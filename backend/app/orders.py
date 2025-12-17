@@ -3,6 +3,32 @@
 
 from app.ledger import record_ledger_entry
 
+# Record buyer payment
+record_ledger_entry(
+    user_id=buyer_id,
+    amount_cents=-amount_cents,
+    currency=currency,
+    reason="order_payment"
+)
+
+record_ledger_entry(
+    user_id=seller_id,
+    amount_cents=fees["seller_receives"],
+    currency=currency,
+    reason="seller_payout"
+)
+
+
+# Platform transaction fee
+record_ledger_entry(
+    user_id=0,  # platform account
+    amount_cents=fees["transaction_fee"] + fees["admin_fee"],
+    currency="GBP",
+    reason="platform_fee"
+)
+
+
+
 from app.models import Order
 from app.db import get_session
 from app.fees import calculate_fees
