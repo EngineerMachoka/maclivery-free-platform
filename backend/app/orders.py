@@ -1,6 +1,8 @@
 # backend/app/orders.py
 # Handles order creation with Tide UK enforcement
 
+from app.ledger import record_ledger_entry
+
 from app.models import Order
 from app.db import get_session
 from app.fees import calculate_fees
