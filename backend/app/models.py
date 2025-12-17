@@ -64,3 +64,32 @@ class Order(SQLModel, table=True):
 
     # Timestamp when order was created
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class LedgerEntry(SQLModel, table=True):
+    """
+    Represents a single financial event in the system.
+    This is the source of truth for all money movement.
+    """
+
+    # Primary key
+    id: Optional[int] = Field(default=None, primary_key=True)
+
+    # User affected by this transaction
+    user_id: int
+
+    # Positive or negative amount (in cents)
+    amount_cents: int
+
+    # Currency of the transaction
+    currency: str  # GBP | KES
+
+    # Reason for the transaction
+    # Examples:
+    # - order_payment
+    # - seller_payout
+    # - platform_fee
+    # - balance_growth
+    reason: str
+
+    # Timestamp of the ledger entry
+    created_at: datetime = Field(default_factory=datetime.utcnow)
