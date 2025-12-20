@@ -1,64 +1,33 @@
-# backend/app/orders.py
-# Handles order creation with Tide UK enforcement
-
-from app.ledger import record_ledger_entry
-
-# Record buyer payment
-record_ledger_entry(
-    user_id=buyer_id,
-    amount_cents=-amount_cents,
-    currency=currency,
-    reason="order_payment"
-)
-
-record_ledger_entry(
-    user_id=seller_id,
-    amount_cents=fees["seller_receives"],
-    currency=currency,
-    reason="seller_payout"
-)
-
-
-# Platform transaction fee
-record_ledger_entry(
-    user_id=0,  # platform account
-    amount_cents=fees["transaction_fee"] + fees["admin_fee"],
-    currency="GBP",
-    reason="platform_fee"
-)
-
-
-
-from app.models import Order
-from app.db import get_session
 from app.fees import calculate_fees
 from app.payments_tide import process_tide_payment
+from app.ledger import record_ledger_entry
+from app.db import get_session
+from app.models import Order
 
-def create_order(buyer_id: int, seller_id: int, amount_cents: int, currency: str, buyer_country: str):
+def create_order(buyer_id, seller_id, amount_cents, currency, buyer_country):
     """
-    Creates an order with strict payment enforcement.
-
-    RULES:
-    - UK users MUST pay via Tide
-    - Orders cannot exist without confirmed payment
+    Creates an order only if payment succeeds.
     """
 
-    # If buyer is from UK, enforce Tide payment
+    # UK users must pay via Tide
     if buyer_country == "UK":
+        payment = process_tide_payment(buyer_id, amount_cents)
+        if not payment["success"]:
+            return {"error": "Payment failed"}
 
-        # Attempt Tide payment
-        payment_result = process_tide_payment(buyer_id, amount_cents)
-
-        # If Tide payment fails, reject order
-        if not payment_result["success"]:
-            return {
-                "error": "Tide payment failed. Order not created."
-            }
-
-    # Calculate platform fees
+    # Calculate fees
     fees = calculate_fees(amount_cents)
 
-    # Save order only AFTER payment success
+    # Buyer pays
+    record_ledger_entry(buyer_id, -amount_cents, currency, "order_payment")
+
+    # Seller earns
+    record_ledger_entry(seller_id, fees["seller_receives"], currency, "seller_payout")
+
+    # Platform earns (stored in GBP / Tide)
+    record_ledger_entry(0, fees["transaction_fee"] + fees["admin_fee"], "GBP", "platform_fee")
+
+    # Save order
     with get_session() as db:
         order = Order(
             buyer_id=buyer_id,
@@ -67,13 +36,7 @@ def create_order(buyer_id: int, seller_id: int, amount_cents: int, currency: str
             currency=currency,
             paid=True
         )
-
         db.add(order)
         db.commit()
-        db.refresh(order)
 
-    return {
-        "order_id": order.id,
-        "paid_via": "Tide UK" if buyer_country == "UK" else "Internal",
-        "fees": fees
-    }
+    return {"status": "Order created"}
