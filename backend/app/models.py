@@ -1,95 +1,47 @@
-# backend/app/models.py
-# This file defines database tables (data models)
-
-# Import SQLModel base class and Field helper
+from typing import Optional
+from datetime import datetime
 from sqlmodel import SQLModel, Field
 
-# Used for optional fields (nullable)
-from typing import Optional
-
-# Used to store timestamps
-from datetime import datetime
-
+# ---------------- USERS ----------------
 class User(SQLModel, table=True):
     """
-    Represents a platform user.
-    A user can be a customer, seller, or admin.
+    Represents a system user (buyer, seller, admin).
     """
-    # Primary key (auto-incremented)
     id: Optional[int] = Field(default=None, primary_key=True)
+    name: str
+    country: str  # "UK" or "KE"
 
-    # Role defines permissions
-    role: str  # customer | seller | admin
-
-    # Country determines currency and branch logic
-    country: str  # KE | UK
-
+# ---------------- WALLETS ----------------
 class Wallet(SQLModel, table=True):
     """
-    Stores money balances for each user.
-    Balances are stored in cents to avoid rounding errors.
+    Stores balances per user per currency.
     """
     id: Optional[int] = Field(default=None, primary_key=True)
-
-    # Links wallet to a user
     user_id: int
-
-    # Currency of the wallet
-    currency: str  # KES | GBP
-
-    # Balance stored as integer cents
+    currency: str  # GBP or KES
     balance_cents: int = 0
 
+# ---------------- ORDERS ----------------
 class Order(SQLModel, table=True):
     """
-    Represents a marketplace order.
-    Orders must be PAID before they are created.
+    Represents a paid marketplace order.
     """
     id: Optional[int] = Field(default=None, primary_key=True)
-
-    # Buyer placing the order
     buyer_id: int
-
-    # Seller receiving the order
     seller_id: int
-
-    # Order value in cents
     amount_cents: int
-
-    # Currency used for this order
     currency: str
-
-    # Indicates whether payment was completed
     paid: bool = False
-
-    # Timestamp when order was created
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
+# ---------------- LEDGER ----------------
 class LedgerEntry(SQLModel, table=True):
     """
-    Represents a single financial event in the system.
-    This is the source of truth for all money movement.
+    Records every money movement in the system.
     """
-
-    # Primary key
     id: Optional[int] = Field(default=None, primary_key=True)
-
-    # User affected by this transaction
     user_id: int
-
-    # Positive or negative amount (in cents)
     amount_cents: int
-
-    # Currency of the transaction
-    currency: str  # GBP | KES
-
-    # Reason for the transaction
-    # Examples:
-    # - order_payment
-    # - seller_payout
-    # - platform_fee
-    # - balance_growth
+    currency: str
     reason: str
-
-    # Timestamp of the ledger entry
     created_at: datetime = Field(default_factory=datetime.utcnow)
