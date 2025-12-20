@@ -1,17 +1,13 @@
-# backend/app/ledger.py
-# Handles creation of ledger entries and wallet updates
-
 from app.db import get_session
 from app.models import LedgerEntry, Wallet
 
-def record_ledger_entry(user_id: int, amount_cents: int, currency: str, reason: str):
+def record_ledger_entry(user_id, amount_cents, currency, reason):
     """
-    Records a ledger entry and updates wallet balance.
+    Writes a ledger entry and updates wallet balance.
     """
 
     with get_session() as db:
-
-        # Create ledger entry
+        # Create ledger record
         entry = LedgerEntry(
             user_id=user_id,
             amount_cents=amount_cents,
@@ -20,13 +16,12 @@ def record_ledger_entry(user_id: int, amount_cents: int, currency: str, reason: 
         )
         db.add(entry)
 
-        # Fetch wallet
+        # Get or create wallet
         wallet = db.query(Wallet).filter(
             Wallet.user_id == user_id,
             Wallet.currency == currency
         ).first()
 
-        # Create wallet if missing
         if not wallet:
             wallet = Wallet(
                 user_id=user_id,
@@ -40,5 +35,3 @@ def record_ledger_entry(user_id: int, amount_cents: int, currency: str, reason: 
 
         # Save changes
         db.commit()
-
-        return entry
