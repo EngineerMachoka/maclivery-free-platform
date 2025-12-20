@@ -1,27 +1,17 @@
-# backend/app/db.py
-# This file handles database configuration and connections
-
-# Import SQLModel (ORM) and database utilities
+# Import SQLModel to manage database models and sessions
 from sqlmodel import SQLModel, create_engine, Session
 
-# Define database URL
-# SQLite is a file-based database, requires NO server and is FREE
-DATABASE_URL = "sqlite:///maclivery.db"
+# Define the database URL
+# SQLite is used for the free version because it needs no setup
+DATABASE_URL = "sqlite:///database.db"
 
-# Create a database engine
-# The engine is responsible for communicating with the database
-engine = create_engine(DATABASE_URL, echo=False)
+# Create the database engine
+# echo=True prints SQL queries for learning/debugging
+engine = create_engine(DATABASE_URL, echo=True)
 
 def get_session():
     """
-    Creates and returns a database session.
-    A session is required whenever we read or write data.
+    Provides a database session.
+    Used in every file that talks to the database.
     """
     return Session(engine)
-
-def init_db():
-    """
-    Creates all database tables defined in models.py.
-    This runs automatically when the API starts.
-    """
-    SQLModel.metadata.create_all(engine)
